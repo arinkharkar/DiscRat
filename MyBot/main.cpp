@@ -8,7 +8,8 @@
 #include <Windows.h>
 using namespace dpp;
 
-const std::string BOT_TOKEN = "OTgxNTk0MjIzMjM5MzY0NjU4.GpMw66.JCIoH9aOa2c5VzA1uv0EnUObVHZr1CtI8tfkCo";
+// TODO: implement secrets.txt
+const std::string BOT_TOKEN = "TOKEN_GOES_HERE";
 std::vector<std::string> split(std::string s, std::string delimiter);
 
 void send_message(cluster& bot, std::string txt, const snowflake& channel_id);
