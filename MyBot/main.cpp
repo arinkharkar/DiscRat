@@ -8,20 +8,24 @@
 #include <Windows.h>
 using namespace dpp;
 
-const std::string BOT_TOKEN = "OTgxNTk0MjIzMjM5MzY0NjU4.GpMw66.JCIoH9aOa2c5VzA1uv0EnUObVHZr1CtI8tfkCo";
-std::vector<std::string> split(std::string s, std::string delimiter);
-
-void send_message(cluster& bot, std::string txt, const snowflake& channel_id);
-
-std::vector<std::string> whitelist { "kalix_z#0000" };
+std::string BOT_TOKEN = "";
+std::vector<std::string> whitelist{ "kalix_z#0000" };
 bool useWaitlist = true;
+
+std::vector<std::string> split(std::string s, std::string delimiter);
+void send_message(cluster& bot, std::string txt, const snowflake& channel_id);
+std::string get_bot_token(const std::string& secret_file);
+
+
+
+
 
 
 int main()
 {
-    int v = -5;
+    BOT_TOKEN = get_bot_token("token.tok");
 
-    std::cout << std::hex << v << '\n';
+    if (BOT_TOKEN.size() == 0) return -1;
 
     init_fsys();
     /* Create bot cluster */
@@ -36,7 +40,7 @@ int main()
 
         // if the author isnt on the whitelist return
         /* if msg starts with ! */
-        if (evnt.msg.content[0] != '!')
+        if (evnt.msg.content[0] != '$')
             return;
         
         std::string command = evnt.msg.content;
@@ -116,8 +120,12 @@ int main()
     });
 
     /* Start the bot */
-    bot.start(false);
-
+    try {
+        bot.start(false);
+    }
+    catch (dpp::invalid_token_exception) {
+        bot.log(ll_error, "ERROR, invalid token");
+    }
     return 0;
 }
 
@@ -152,4 +160,29 @@ void send_message(cluster& bot, std::string txt, const snowflake& channel_id) {
     msg.content = txt;
     msg.channel_id = channel_id;
     bot.message_create(msg);
+}
+
+std::string get_bot_token(const std::string& secret_file) {
+    FILE* token_file = fopen(secret_file.c_str(), "r");
+    if (!token_file) {
+        std::cerr << "Error: Invalid secret token file\n";
+        return "";
+    }
+    fseek(token_file, 0, SEEK_END);
+    size_t len = ftell(token_file);
+    fseek(token_file, 0, SEEK_SET);
+    constexpr int MAX_TOKEN_LEN = 257;
+    /* if the file is longer than 256 chars, there is no token in the file(it should be much shorter than 256) */
+    if (len > MAX_TOKEN_LEN - 1) {
+        std::cerr << "Error in secret token file\n";
+        return "";
+    }
+
+    char token_c_str[MAX_TOKEN_LEN];
+    fread(token_c_str, sizeof(char), len, token_file);
+
+    /* terminate the c_string */
+    token_c_str[len] = '\0';
+
+    return token_c_str;
 }

