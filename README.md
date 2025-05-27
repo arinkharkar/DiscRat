@@ -1,4 +1,4 @@
-# A Remote Access Tool using Discord for a REST API
+# A Remote Access Tool using Discord.cpp's REST API
 
 
 I hold no responsibility whatsoever on any use of this application, and any of its possible legal repercussions.
